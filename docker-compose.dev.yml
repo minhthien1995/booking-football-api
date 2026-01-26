@@ -1,0 +1,78 @@
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: football_booking_mysql_dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: football_booking
+      MYSQL_USER: footballuser
+      MYSQL_PASSWORD: footballpass
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data_dev:/var/lib/mysql
+    networks:
+      - football_network_dev
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Node.js Backend Application (Development)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: football_booking_backend_dev
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      DB_HOST: mysql
+      DB_USER: footballuser
+      DB_PASSWORD: footballpass
+      DB_NAME: football_booking
+      DB_PORT: 3306
+      JWT_SECRET: dev_secret_key_for_testing
+      JWT_EXPIRE: 7d
+      SUPERADMIN_EMAIL: superadmin@footballbooking.com
+      SUPERADMIN_PASSWORD: superadmin123
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - football_network_dev
+    volumes:
+      - .:/app
+      - /app/node_modules  # Prevent overwriting node_modules
+    command: sh -c "sleep 10 && npm run dev"
+
+  # phpMyAdmin for easy database management
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: football_booking_phpmyadmin_dev
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: rootpassword
+    depends_on:
+      - mysql
+    networks:
+      - football_network_dev
+
+networks:
+  football_network_dev:
+    driver: bridge
+
+volumes:
+  mysql_data_dev:
+    driver: local

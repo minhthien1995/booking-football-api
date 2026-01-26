@@ -1,0 +1,78 @@
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: football_booking_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: football_booking
+      MYSQL_USER: footballuser
+      MYSQL_PASSWORD: footballpass
+    ports:
+      - "3307:3306"  # Expose on port 3307 to avoid conflicts
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql  # Optional: initial SQL scripts
+    networks:
+      - football_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Node.js Backend Application
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: football_booking_backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DB_HOST: mysql
+      DB_USER: footballuser
+      DB_PASSWORD: footballpass
+      DB_NAME: football_booking
+      DB_PORT: 3306
+      JWT_SECRET: your_super_secret_jwt_key_change_this_in_production_docker_version
+      JWT_EXPIRE: 7d
+      SUPERADMIN_EMAIL: superadmin@footballbooking.com
+      SUPERADMIN_PASSWORD: superadmin123
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - football_network
+    volumes:
+      - ./logs:/app/logs  # Optional: for logging
+    command: sh -c "sleep 10 && npm start"  # Wait for MySQL to be fully ready
+
+  # Optional: phpMyAdmin for database management
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: football_booking_phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: rootpassword
+    depends_on:
+      - mysql
+    networks:
+      - football_network
+
+networks:
+  football_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
