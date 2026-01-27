@@ -5,7 +5,8 @@ const {
   getPublicField,
   getAvailableSlots,
   findOrCreateCustomer,
-  createPublicBooking
+  createPublicBooking,
+  findAvailableFields
 } = require('../controllers/publicController');
 
 // Public endpoints (NO authentication required)
@@ -14,7 +15,7 @@ const {
 router.get('/fields', getPublicFields);                            // Get all active fields
 router.get('/fields/:id', getPublicField);                         // Get single field
 router.get('/fields/:fieldId/slots/:date', getAvailableSlots);    // Get available time slots
-
+router.get('/fields/search-available', findAvailableFields);      // Find available fields by date and time
 
 // Customers
 router.post('/customers/find-or-create', findOrCreateCustomer);

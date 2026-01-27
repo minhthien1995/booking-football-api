@@ -9,10 +9,9 @@ exports.getPublicFields = async (req, res) => {
     const { search, fieldType } = req.query;
 
     const whereClause = {
-      isActive: true // Only show active fields
+      isActive: true
     };
 
-    // Search filter
     if (search) {
       whereClause[Op.or] = [
         { name: { [Op.like]: `%${search}%` } },
@@ -20,7 +19,6 @@ exports.getPublicFields = async (req, res) => {
       ];
     }
 
-    // Field type filter
     if (fieldType) {
       whereClause.fieldType = fieldType;
     }
@@ -45,7 +43,7 @@ exports.getPublicFields = async (req, res) => {
   }
 };
 
-// @desc    Get single field details for public
+// @desc    Get single field for public
 // @route   GET /api/public/fields/:id
 // @access  Public
 exports.getPublicField = async (req, res) => {
@@ -78,14 +76,13 @@ exports.getPublicField = async (req, res) => {
   }
 };
 
-// @desc    Get available time slots for a field
+// @desc    Get available slots
 // @route   GET /api/public/fields/:fieldId/slots/:date
 // @access  Public
 exports.getAvailableSlots = async (req, res) => {
   try {
     const { fieldId, date } = req.params;
 
-    // Check if field exists and is active
     const field = await Field.findOne({
       where: {
         id: fieldId,
@@ -100,7 +97,6 @@ exports.getAvailableSlots = async (req, res) => {
       });
     }
 
-    // Get all bookings for this field on this date
     const bookings = await Booking.findAll({
       where: {
         fieldId,
@@ -111,13 +107,11 @@ exports.getAvailableSlots = async (req, res) => {
       order: [['startTime', 'ASC']]
     });
 
-    // Generate time slots (6:00 - 22:00, 1-hour intervals)
     const slots = [];
     for (let hour = 6; hour < 22; hour++) {
       const startTime = `${hour.toString().padStart(2, '0')}:00`;
       const endTime = `${(hour + 1).toString().padStart(2, '0')}:00`;
 
-      // Check if this slot conflicts with any booking
       const isBooked = bookings.some(booking => {
         const bookingStart = booking.startTime.substring(0, 5);
         const bookingEnd = booking.endTime.substring(0, 5);
@@ -157,14 +151,13 @@ exports.getAvailableSlots = async (req, res) => {
   }
 };
 
-// @desc    Find or create customer by phone
+// @desc    Find or create customer
 // @route   POST /api/public/customers/find-or-create
 // @access  Public
 exports.findOrCreateCustomer = async (req, res) => {
   try {
     const { phone, fullName } = req.body;
 
-    // Validation
     if (!phone || !fullName) {
       return res.status(400).json({
         success: false,
@@ -172,7 +165,6 @@ exports.findOrCreateCustomer = async (req, res) => {
       });
     }
 
-    // Validate phone format
     const phoneRegex = /^0\d{9}$/;
     if (!phoneRegex.test(phone)) {
       return res.status(400).json({
@@ -181,7 +173,6 @@ exports.findOrCreateCustomer = async (req, res) => {
       });
     }
 
-    // Check if customer exists
     let customer = await User.findOne({ 
       where: { phone, role: 'customer' } 
     });
@@ -201,7 +192,6 @@ exports.findOrCreateCustomer = async (req, res) => {
       });
     }
 
-    // Create new customer
     customer = await User.create({
       phone,
       fullName,
@@ -248,7 +238,6 @@ exports.createPublicBooking = async (req, res) => {
   try {
     const { userId, fieldId, bookingDate, startTime, endTime, duration, totalPrice, notes } = req.body;
 
-    // Validation
     if (!userId || !fieldId || !bookingDate || !startTime || !endTime) {
       return res.status(400).json({
         success: false,
@@ -256,7 +245,6 @@ exports.createPublicBooking = async (req, res) => {
       });
     }
 
-    // Check if user exists
     const user = await User.findByPk(userId);
     if (!user || user.role !== 'customer') {
       return res.status(404).json({
@@ -265,7 +253,6 @@ exports.createPublicBooking = async (req, res) => {
       });
     }
 
-    // Check if field exists and is active
     const field = await Field.findOne({
       where: {
         id: fieldId,
@@ -280,7 +267,6 @@ exports.createPublicBooking = async (req, res) => {
       });
     }
 
-    // Calculate duration and price
     let bookingDuration = duration;
     let bookingTotalPrice = totalPrice;
 
@@ -301,7 +287,6 @@ exports.createPublicBooking = async (req, res) => {
       bookingTotalPrice = bookingDuration * field.pricePerHour;
     }
 
-    // Check for conflicts
     const conflictingBookings = await Booking.findAll({
       where: {
         fieldId,
@@ -343,7 +328,6 @@ exports.createPublicBooking = async (req, res) => {
       });
     }
 
-    // Create booking
     const booking = await Booking.create({
       userId,
       fieldId,
@@ -357,7 +341,6 @@ exports.createPublicBooking = async (req, res) => {
       paymentStatus: 'unpaid'
     });
 
-    // Return with details
     const bookingWithDetails = await Booking.findByPk(booking.id, {
       include: [
         { 
@@ -408,10 +391,178 @@ exports.createPublicBooking = async (req, res) => {
   }
 };
 
-module.exports = {
-  getPublicFields,
-  getPublicField,
-  getAvailableSlots,
-  findOrCreateCustomer,
-  createPublicBooking
+// @desc    Find available fields by date and time
+// @route   GET /api/public/fields/search-available?date=YYYY-MM-DD&startTime=HH:mm&endTime=HH:mm
+// @access  Public
+exports.findAvailableFields = async (req, res) => {
+  try {
+    const { date, startTime, endTime } = req.query;
+
+    // Validation
+    if (!date || !startTime || !endTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng cung cấp đầy đủ: date, startTime, endTime'
+      });
+    }
+
+    // Validate date format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(date)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Định dạng ngày không hợp lệ (YYYY-MM-DD)'
+      });
+    }
+
+    // Validate time format
+    const timeRegex = /^\d{2}:\d{2}$/;
+    if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Định dạng giờ không hợp lệ (HH:mm)'
+      });
+    }
+
+    // Validate time logic
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+
+    if (endMinutes <= startMinutes) {
+      return res.status(400).json({
+        success: false,
+        message: 'Giờ kết thúc phải sau giờ bắt đầu'
+      });
+    }
+
+    const duration = (endMinutes - startMinutes) / 60;
+    if (duration < 1 || duration > 12) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thời gian thuê từ 1-12 giờ'
+      });
+    }
+
+    // Get all active fields
+    const allFields = await Field.findAll({
+      where: { isActive: true },
+      attributes: ['id', 'name', 'fieldType', 'location', 'description', 'pricePerHour'],
+      order: [['name', 'ASC']]
+    });
+
+    if (allFields.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không có sân nào khả dụng'
+      });
+    }
+
+    // Get all bookings for this date
+    const bookings = await Booking.findAll({
+      where: {
+        bookingDate: date,
+        status: { [Op.notIn]: ['cancelled'] }
+      },
+      attributes: ['fieldId', 'startTime', 'endTime'],
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['fullName', 'phone']
+        }
+      ]
+    });
+
+    // Check each field for availability
+    const availableFields = [];
+    const unavailableFields = [];
+
+    for (const field of allFields) {
+      // Get bookings for this specific field
+      const fieldBookings = bookings.filter(b => b.fieldId === field.id);
+
+      // Check if requested time slot conflicts with any booking
+      const hasConflict = fieldBookings.some(booking => {
+        const bookingStart = booking.startTime.substring(0, 5);
+        const bookingEnd = booking.endTime.substring(0, 5);
+
+        return (
+          (startTime >= bookingStart && startTime < bookingEnd) ||
+          (endTime > bookingStart && endTime <= bookingEnd) ||
+          (startTime <= bookingStart && endTime >= bookingEnd)
+        );
+      });
+
+      const totalPrice = duration * field.pricePerHour;
+
+      if (hasConflict) {
+        // Find conflicting booking details
+        const conflictingBooking = fieldBookings.find(booking => {
+          const bookingStart = booking.startTime.substring(0, 5);
+          const bookingEnd = booking.endTime.substring(0, 5);
+          return (
+            (startTime >= bookingStart && startTime < bookingEnd) ||
+            (endTime > bookingStart && endTime <= bookingEnd) ||
+            (startTime <= bookingStart && endTime >= bookingEnd)
+          );
+        });
+
+        unavailableFields.push({
+          id: field.id,
+          name: field.name,
+          fieldType: field.fieldType,
+          location: field.location,
+          pricePerHour: field.pricePerHour,
+          estimatedPrice: totalPrice,
+          available: false,
+          reason: 'Đã có người đặt',
+          conflictingBooking: {
+            startTime: conflictingBooking.startTime.substring(0, 5),
+            endTime: conflictingBooking.endTime.substring(0, 5),
+            customerName: conflictingBooking.user?.fullName || 'N/A'
+          }
+        });
+      } else {
+        availableFields.push({
+          id: field.id,
+          name: field.name,
+          fieldType: field.fieldType,
+          location: field.location,
+          description: field.description,
+          pricePerHour: field.pricePerHour,
+          estimatedPrice: totalPrice,
+          available: true
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Tìm thấy ${availableFields.length}/${allFields.length} sân trống`,
+      data: {
+        searchCriteria: {
+          date,
+          startTime,
+          endTime,
+          duration: `${duration} giờ`
+        },
+        summary: {
+          totalFields: allFields.length,
+          availableCount: availableFields.length,
+          unavailableCount: unavailableFields.length
+        },
+        availableFields,
+        unavailableFields
+      }
+    });
+  } catch (error) {
+    console.error('Find available fields error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi tìm sân trống',
+      error: error.message
+    });
+  }
 };
