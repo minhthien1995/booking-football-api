@@ -46,13 +46,29 @@ const isTimeSlotAvailable = async (fieldId, bookingDate, startTime, endTime, exc
 
 // @desc    Create new booking
 // @route   POST /api/bookings
-// @access  Private
+// @access  Private (Admin can book for customers)
 exports.createBooking = async (req, res) => {
   try {
-    const { fieldId, bookingDate, startTime, duration, notes } = req.body;
-    const userId = req.user.id;
+    const { userId, fieldId, bookingDate, startTime, endTime, duration, totalPrice, notes } = req.body;
 
-    // Check if field exists and is active
+    // Validation
+    if (!userId || !fieldId || !bookingDate || !startTime || !endTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin bắt buộc'
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy khách hàng'
+      });
+    }
+
+    // Check if field exists
     const field = await Field.findByPk(fieldId);
     if (!field) {
       return res.status(404).json({
@@ -61,45 +77,87 @@ exports.createBooking = async (req, res) => {
       });
     }
 
-    if (!field.isActive) {
+    // Validate duration
+    let bookingDuration = duration;
+    let bookingTotalPrice = totalPrice;
+
+    if (!bookingDuration) {
+      const [startHour, startMin] = startTime.split(':').map(Number);
+      const [endHour, endMin] = endTime.split(':').map(Number);
+      bookingDuration = (endHour * 60 + endMin - startHour * 60 - startMin) / 60;
+    }
+
+    if (bookingDuration < 1 || bookingDuration > 12) {
       return res.status(400).json({
         success: false,
-        message: 'Sân này hiện không khả dụng'
+        message: 'Thời gian thuê từ 1-12 giờ'
       });
     }
 
-    // Calculate end time
-    const endTime = calculateEndTime(startTime, duration);
-
-    // Check if booking date is in the future
-    const today = moment().startOf('day');
-    const bookingMoment = moment(bookingDate);
-    if (bookingMoment.isBefore(today)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Không thể đặt sân cho ngày trong quá khứ'
-      });
+    if (!bookingTotalPrice) {
+      bookingTotalPrice = bookingDuration * field.pricePerHour;
     }
 
-    // Check if time is within field operating hours
-    if (startTime < field.openTime || endTime > field.closeTime) {
+    // ⭐ CHECK FOR CONFLICTING BOOKINGS
+    const conflictingBookings = await Booking.findAll({
+      where: {
+        fieldId,
+        bookingDate,
+        status: { [Op.notIn]: ['cancelled'] },
+        [Op.or]: [
+          {
+            // New booking starts during existing booking
+            [Op.and]: [
+              { startTime: { [Op.lte]: startTime } },
+              { endTime: { [Op.gt]: startTime } }
+            ]
+          },
+          {
+            // New booking ends during existing booking
+            [Op.and]: [
+              { startTime: { [Op.lt]: endTime } },
+              { endTime: { [Op.gte]: endTime } }
+            ]
+          },
+          {
+            // New booking completely contains existing booking
+            [Op.and]: [
+              { startTime: { [Op.gte]: startTime } },
+              { endTime: { [Op.lte]: endTime } }
+            ]
+          },
+          {
+            // Exact same time slot
+            [Op.and]: [
+              { startTime: startTime },
+              { endTime: endTime }
+            ]
+          }
+        ]
+      },
+      include: [
+        { 
+          model: User,
+          as: 'user',
+          attributes: ['id', 'fullName', 'phone'] 
+        }
+      ]
+    });
+
+    if (conflictingBookings.length > 0) {
+      const conflict = conflictingBookings[0];
       return res.status(400).json({
         success: false,
-        message: `Sân chỉ mở cửa từ ${field.openTime} đến ${field.closeTime}`
+        message: 'Khung giờ này đã được đặt',
+        conflict: {
+          bookingId: conflict.id,
+          customerName: conflict.user?.fullName,
+          startTime: conflict.startTime,
+          endTime: conflict.endTime,
+          bookingDate: conflict.bookingDate
+        }
       });
     }
-
-    // Check if time slot is available
-    const isAvailable = await isTimeSlotAvailable(fieldId, bookingDate, startTime, endTime);
-    if (!isAvailable) {
-      return res.status(400).json({
-        success: false,
-        message: 'Khung giờ này đã được đặt. Vui lòng chọn khung giờ khác'
-      });
-    }
-
-    // Calculate total price
-    const totalPrice = parseFloat(field.pricePerHour) * duration;
 
     // Create booking
     const booking = await Booking.create({
@@ -108,18 +166,26 @@ exports.createBooking = async (req, res) => {
       bookingDate,
       startTime,
       endTime,
-      duration,
-      totalPrice,
-      notes,
+      duration: bookingDuration,
+      totalPrice: bookingTotalPrice,
+      notes: notes || null,
       status: 'pending',
       paymentStatus: 'unpaid'
     });
 
-    // Get booking with related data
+    // Return with full details
     const bookingWithDetails = await Booking.findByPk(booking.id, {
       include: [
-        { model: Field, as: 'field' },
-        { model: User, as: 'user' }
+        { 
+          model: User,
+          as: 'user',
+          attributes: ['id', 'fullName', 'email', 'phone'] 
+        },
+        { 
+          model: Field,
+          as: 'field',
+          attributes: ['id', 'name', 'fieldType', 'location', 'pricePerHour'] 
+        }
       ]
     });
 
@@ -130,9 +196,32 @@ exports.createBooking = async (req, res) => {
     });
   } catch (error) {
     console.error('Create booking error:', error);
+    
+    // Handle duplicate booking constraint
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Khung giờ này đã được đặt. Vui lòng chọn giờ khác.',
+        error: 'DUPLICATE_BOOKING'
+      });
+    }
+    
+    if (error.name === 'SequelizeValidationError') {
+      const errors = error.errors.map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+      return res.status(400).json({
+        success: false,
+        message: 'Dữ liệu không hợp lệ',
+        errors
+      });
+    }
+    
     res.status(500).json({
       success: false,
-      message: 'Lỗi server khi đặt sân'
+      message: 'Lỗi server khi tạo booking',
+      error: error.message
     });
   }
 };

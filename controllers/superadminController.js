@@ -217,6 +217,133 @@ exports.getAllCustomers = async (req, res) => {
   }
 };
 
+// @desc    Create or get customer by phone (for booking flow)
+// @route   POST /api/superadmin/customers/find-or-create
+// @access  Private/Superadmin or Admin
+exports.findOrCreateCustomer = async (req, res) => {
+  try {
+    const { phone, fullName } = req.body;
+
+    // Validation
+    if (!phone || !fullName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Số điện thoại và họ tên là bắt buộc'
+      });
+    }
+
+    // Check if phone exists
+    let customer = await User.findOne({ where: { phone, role: 'customer' } });
+
+    if (customer) {
+      // Customer exists, return customer
+      return res.status(200).json({
+        success: true,
+        message: 'Khách hàng đã tồn tại',
+        data: {
+          customer: customer.toJSON(),
+          isNewCustomer: false
+        }
+      });
+    }
+
+    // Customer doesn't exist, create new one
+    // No email, no password for now - they can set it up later
+    customer = await User.create({
+      phone,
+      fullName,
+      email: null, // No email required
+      password: null, // No password required for phone-only customers
+      role: 'customer',
+      isActive: true
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Tạo khách hàng mới thành công',
+      data: {
+        customer: customer.toJSON(),
+        isNewCustomer: true
+      }
+    });
+  } catch (error) {
+    console.error('Find or create customer error:', error);
+    
+    // Handle unique constraint error
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Số điện thoại đã được sử dụng'
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi xử lý khách hàng',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Create new customer (Admin can create for booking)
+// @route   POST /api/superadmin/customers
+// @access  Private/Superadmin or Admin
+exports.createCustomer = async (req, res) => {
+  try {
+    const { email, fullName, phone } = req.body;
+
+    // Validation
+    if (!email || !fullName || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, fullName và phone là bắt buộc'
+      });
+    }
+
+    // Check if email exists
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email đã tồn tại'
+      });
+    }
+
+    // Generate random password (8 characters)
+    const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8).toUpperCase();
+
+    // Create customer
+    const customer = await User.create({
+      email,
+      password: randomPassword, // Will be hashed by User model hook
+      fullName,
+      phone,
+      role: 'customer',
+      isActive: true
+    });
+
+    // Remove password from response
+    const customerData = customer.toJSON();
+    delete customerData.password;
+
+    res.status(201).json({
+      success: true,
+      message: 'Tạo khách hàng thành công',
+      data: {
+        customer: customerData,
+        temporaryPassword: randomPassword // Return to admin to notify customer
+      }
+    });
+  } catch (error) {
+    console.error('Create customer error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi tạo khách hàng',
+      error: error.message
+    });
+  }
+};
+
 // @desc    Get system statistics (for superadmin)
 // @route   GET /api/superadmin/stats
 // @access  Private/Superadmin

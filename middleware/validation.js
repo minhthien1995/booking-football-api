@@ -78,6 +78,9 @@ exports.fieldValidation = [
 
 // Validation rules for booking
 exports.bookingValidation = [
+  body('userId')
+    .optional()
+    .isInt().withMessage('ID người dùng không hợp lệ'),
   body('fieldId')
     .notEmpty().withMessage('ID sân không được để trống')
     .isInt().withMessage('ID sân không hợp lệ'),
