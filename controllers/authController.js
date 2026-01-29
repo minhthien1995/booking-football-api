@@ -61,7 +61,7 @@ exports.login = async (req, res) => {
 
     // Find user by email
     const user = await User.findOne({ where: { email } });
-
+    console.log("User: ",user);
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -82,7 +82,7 @@ exports.login = async (req, res) => {
     if (!isPasswordMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Email hoặc mật khẩu không đúng'
+        message: 'Mật khẩu không đúng'
       });
     }
 

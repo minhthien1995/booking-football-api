@@ -545,3 +545,223 @@ exports.getAvailableSlots = async (req, res) => {
     });
   }
 };
+
+// @desc    Update booking status
+// @route   PUT /api/bookings/:id/status
+// @access  Private (Admin/Superadmin)
+exports.updateBookingStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const bookingId = req.params.id;
+
+    // Validate status
+    const validStatuses = ['pending', 'confirmed', 'completed', 'cancelled'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Status không hợp lệ. Phải là: ${validStatuses.join(', ')}`
+      });
+    }
+
+    // Find booking
+    const booking = await Booking.findByPk(bookingId, {
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'fullName', 'phone', 'email']
+        },
+        {
+          model: Field,
+          as: 'field',
+          attributes: ['id', 'name', 'fieldType', 'location']
+        }
+      ]
+    });
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy booking'
+      });
+    }
+
+    // Check if already cancelled
+    if (booking.status === 'cancelled' && status !== 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể thay đổi status của booking đã bị hủy'
+      });
+    }
+
+    // Update status
+    const oldStatus = booking.status;
+    booking.status = status;
+    await booking.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Cập nhật status thành công: ${oldStatus} → ${status}`,
+      data: booking
+    });
+  } catch (error) {
+    console.error('Update booking status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi cập nhật status',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update payment status
+// @route   PUT /api/bookings/:id/payment-status
+// @access  Private (Admin/Superadmin)
+exports.updatePaymentStatus = async (req, res) => {
+  try {
+    const { paymentStatus } = req.body;
+    const bookingId = req.params.id;
+
+    // Validate payment status
+    const validPaymentStatuses = ['unpaid', 'paid', 'refunded'];
+    if (!paymentStatus || !validPaymentStatuses.includes(paymentStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: `Payment status không hợp lệ. Phải là: ${validPaymentStatuses.join(', ')}`
+      });
+    }
+
+    // Find booking
+    const booking = await Booking.findByPk(bookingId, {
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'fullName', 'phone', 'email']
+        },
+        {
+          model: Field,
+          as: 'field',
+          attributes: ['id', 'name', 'fieldType', 'location']
+        }
+      ]
+    });
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy booking'
+      });
+    }
+
+    // Business logic: Không thể refund nếu chưa paid
+    if (paymentStatus === 'refunded' && booking.paymentStatus !== 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể hoàn tiền cho booking đã thanh toán'
+      });
+    }
+
+    // Update payment status
+    const oldPaymentStatus = booking.paymentStatus;
+    booking.paymentStatus = paymentStatus;
+    await booking.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Cập nhật payment status thành công: ${oldPaymentStatus} → ${paymentStatus}`,
+      data: booking
+    });
+  } catch (error) {
+    console.error('Update payment status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi cập nhật payment status',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Quick update - Update both status and payment status
+// @route   PUT /api/bookings/:id/quick-update
+// @access  Private (Admin/Superadmin)
+exports.quickUpdateBooking = async (req, res) => {
+  try {
+    const { status, paymentStatus } = req.body;
+    const bookingId = req.params.id;
+
+    if (!status && !paymentStatus) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cần ít nhất một trong hai: status hoặc paymentStatus'
+      });
+    }
+
+    // Find booking
+    const booking = await Booking.findByPk(bookingId, {
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'fullName', 'phone', 'email']
+        },
+        {
+          model: Field,
+          as: 'field',
+          attributes: ['id', 'name', 'fieldType', 'location']
+        }
+      ]
+    });
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy booking'
+      });
+    }
+
+    const updates = {};
+
+    // Update status if provided
+    if (status) {
+      const validStatuses = ['pending', 'confirmed', 'completed', 'cancelled'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Status không hợp lệ. Phải là: ${validStatuses.join(', ')}`
+        });
+      }
+      updates.status = status;
+      booking.status = status;
+    }
+
+    // Update payment status if provided
+    if (paymentStatus) {
+      const validPaymentStatuses = ['unpaid', 'paid', 'refunded'];
+      if (!validPaymentStatuses.includes(paymentStatus)) {
+        return res.status(400).json({
+          success: false,
+          message: `Payment status không hợp lệ. Phải là: ${validPaymentStatuses.join(', ')}`
+        });
+      }
+      updates.paymentStatus = paymentStatus;
+      booking.paymentStatus = paymentStatus;
+    }
+
+    await booking.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Cập nhật booking thành công',
+      data: booking,
+      updates
+    });
+  } catch (error) {
+    console.error('Quick update booking error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi cập nhật booking',
+      error: error.message
+    });
+  }
+};
