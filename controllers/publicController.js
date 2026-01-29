@@ -93,7 +93,7 @@ exports.getAvailableSlots = async (req, res) => {
     if (!field) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy sân'
+        message: 'Không tìm thấy sân '
       });
     }
 
@@ -397,7 +397,7 @@ exports.createPublicBooking = async (req, res) => {
 exports.findAvailableFields = async (req, res) => {
   try {
     const { date, startTime, endTime } = req.query;
-
+    console.log('Search available fields with:', { date, startTime, endTime });
     // Validation
     if (!date || !startTime || !endTime) {
       return res.status(400).json({

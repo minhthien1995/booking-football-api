@@ -12,10 +12,11 @@ const {
 // Public endpoints (NO authentication required)
 
 // Fields
+router.get('/fields/search-available', findAvailableFields);      // Find available fields by date and time
 router.get('/fields', getPublicFields);                            // Get all active fields
 router.get('/fields/:id', getPublicField);                         // Get single field
 router.get('/fields/:fieldId/slots/:date', getAvailableSlots);    // Get available time slots
-router.get('/fields/search-available', findAvailableFields);      // Find available fields by date and time
+
 
 // Customers
 router.post('/customers/find-or-create', findOrCreateCustomer);
