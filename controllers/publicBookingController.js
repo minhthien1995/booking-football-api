@@ -34,6 +34,16 @@ exports.createPublicBooking = async (req, res) => {
       });
     }
 
+    // ⭐ ADD THIS - Check if field is active
+    if (!field.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: `Sân "${field.name}" hiện đã ngừng hoạt động. Vui lòng chọn sân khác.`,
+        fieldName: field.name,
+        fieldActive: false
+      });
+    }
+
     // Calculate duration and price
     let bookingDuration = duration;
     let bookingTotalPrice = totalPrice;

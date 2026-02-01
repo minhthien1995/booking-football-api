@@ -1,3 +1,5 @@
+const { sequelize } = require('../config/database');
+const Sequelize = require('sequelize');
 const User = require('./User');
 const Field = require('./Field');
 const Booking = require('./Booking');
@@ -5,6 +7,7 @@ const Permission = require('./Permission');
 const UserPermission = require('./UserPermission');
 const UserRole = require('./UserRole');
 const RolePermission = require('./RolePermission');
+
 
 // Define associations
 
@@ -115,5 +118,7 @@ module.exports = {
   Permission,
   UserPermission,
   UserRole,
-  RolePermission
+  RolePermission,
+  sequelize,     
+  Sequelize       
 };

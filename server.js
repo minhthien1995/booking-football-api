@@ -13,6 +13,7 @@ const superadminRoutes = require('./routes/superadminRoutes');
 const permissionRoutes = require('./routes/permissionRoutes');
 const roleRoutes = require('./routes/roleRoutes');
 const publicRoutes = require('./routes/publicRoutes'); 
+const reportsRoutes = require('./routes/reportsRoutes');
 
 // Import models to ensure they're loaded
 require('./models');
@@ -33,6 +34,8 @@ app.use('/api/superadmin', superadminRoutes);
 app.use('/api/permissions', permissionRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/reports', reportsRoutes);
+
 
 // Health check route
 app.get('/api/health', (req, res) => {

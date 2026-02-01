@@ -48,7 +48,7 @@ exports.getAllAdmins = async (req, res) => {
 // @access  Private/Superadmin
 exports.createAdmin = async (req, res) => {
   try {
-    const { fullName, email, password, phone } = req.body;
+    const { fullName, email, password, phone, role, customRoleId } = req.body;
 
     // Check if email already exists
     const existingUser = await User.findOne({ where: { email } });
@@ -65,7 +65,9 @@ exports.createAdmin = async (req, res) => {
       email,
       password,
       phone,
-      role: 'admin'
+      role: role || 'admin',
+      customRoleId: customRoleId || null,
+      isActive: true
     });
 
     res.status(201).json({
@@ -96,15 +98,9 @@ exports.updateAdmin = async (req, res) => {
       });
     }
 
-    // Ensure user is an admin
-    if (admin.role !== 'admin') {
-      return res.status(400).json({
-        success: false,
-        message: 'User này không phải là quản lý'
-      });
-    }
+    
 
-    const { fullName, email, phone, isActive } = req.body;
+    const { fullName, email, phone, isActive, role, customRoleId, password } = req.body;
 
     // Check if email is already taken by another user
     if (email && email !== admin.email) {
@@ -121,7 +117,13 @@ exports.updateAdmin = async (req, res) => {
     if (fullName !== undefined) admin.fullName = fullName;
     if (phone !== undefined) admin.phone = phone;
     if (isActive !== undefined) admin.isActive = isActive;
-
+    if (role) admin.role = role;
+    if (customRoleId !== undefined) admin.customRoleId = customRoleId;
+    // Update password if provided
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      admin.password = await bcrypt.hash(password, salt);
+    }
     await admin.save();
 
     res.status(200).json({

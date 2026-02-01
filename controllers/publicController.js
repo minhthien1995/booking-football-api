@@ -6,11 +6,11 @@ const { Op } = require('sequelize');
 // @access  Public
 exports.getPublicFields = async (req, res) => {
   try {
-    const { search, fieldType } = req.query;
-
-    const whereClause = {
-      isActive: true
-    };
+    const { search, fieldType, showInactive } = req.query;
+    
+    const whereClause = showInactive === 'true' 
+      ? {} 
+      : { isActive: true };
 
     if (search) {
       whereClause[Op.or] = [
@@ -397,7 +397,6 @@ exports.createPublicBooking = async (req, res) => {
 exports.findAvailableFields = async (req, res) => {
   try {
     const { date, startTime, endTime } = req.query;
-    console.log('Search available fields with:', { date, startTime, endTime });
     // Validation
     if (!date || !startTime || !endTime) {
       return res.status(400).json({
