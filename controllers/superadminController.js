@@ -121,8 +121,7 @@ exports.updateAdmin = async (req, res) => {
     if (customRoleId !== undefined) admin.customRoleId = customRoleId;
     // Update password if provided
     if (password) {
-      const salt = await bcrypt.genSalt(10);
-      admin.password = await bcrypt.hash(password, salt);
+      admin.password = password;
     }
     await admin.save();
 
