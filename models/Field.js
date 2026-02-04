@@ -1,61 +1,73 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-const Field = sequelize.define('Field', {
+const Notification = sequelize.define('Notification', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
   },
-  name: {
-    type: DataTypes.STRING(100),
-    allowNull: false
-  },
-  fieldType: {
-    type: DataTypes.ENUM('5vs5', '7vs7', '11vs11'),
+  userId: {
+    type: DataTypes.INTEGER,
     allowNull: false,
-    field: 'field_type',
-    comment: 'Type of football field'
+    field: 'user_id',
+    references: {
+      model: 'users',
+      key: 'id'
+    }
   },
-  location: {
+  type: {
+    type: DataTypes.ENUM('new_booking', 'booking_updated', 'booking_cancelled', 'payment_received', 'system'),
+    allowNull: false,
+    defaultValue: 'new_booking'
+  },
+  title: {
     type: DataTypes.STRING(255),
     allowNull: false
   },
-  pricePerHour: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-    field: 'price_per_hour'
-  },
-  description: {
+  message: {
     type: DataTypes.TEXT,
-    allowNull: true
+    allowNull: false
   },
-  image: {
-    type: DataTypes.STRING(255),
+  data: {
+    type: DataTypes.JSON,
     allowNull: true,
-    comment: 'Image URL or path'
+    get() {
+      const rawValue = this.getDataValue('data');
+      return rawValue ? (typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue) : null;
+    }
   },
-  isActive: {
+  isRead: {
     type: DataTypes.BOOLEAN,
-    defaultValue: true,
-    field: 'is_active'
-  },
-  openTime: {
-    type: DataTypes.TIME,
     allowNull: false,
-    defaultValue: '06:00:00',
-    field: 'open_time'
+    defaultValue: false,
+    field: 'is_read'
   },
-  closeTime: {
-    type: DataTypes.TIME,
+  readAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'read_at'
+  },
+  priority: {
+    type: DataTypes.ENUM('low', 'medium', 'high', 'urgent'),
     allowNull: false,
-    defaultValue: '23:00:00',
-    field: 'close_time'
+    defaultValue: 'medium'
+  },
+  isDeleted: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    field: 'is_deleted'
+  },
+  deletedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'deleted_at'
   }
 }, {
-  tableName: 'fields',
+  tableName: 'notifications',
   timestamps: true,
   underscored: true
 });
 
-module.exports = Field;
+module.exports = Notification;

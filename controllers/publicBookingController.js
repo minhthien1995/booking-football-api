@@ -151,6 +151,24 @@ exports.createPublicBooking = async (req, res) => {
       ]
     });
 
+    // ⭐ EMIT SOCKET EVENT TO ADMIN
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('new-booking', {
+        bookingId: booking.id,
+        customerName: bookingWithDetails.user.fullName,
+        customerPhone: bookingWithDetails.user.phone,
+        fieldName: bookingWithDetails.field.name,
+        bookingDate: bookingDate,
+        startTime: startTime,
+        endTime: endTime,
+        totalPrice: bookingTotalPrice,
+        createdAt: new Date().toISOString(),
+        message: `Booking mới từ ${bookingWithDetails.user.fullName}`
+      });
+      console.log('🔔 Notification sent to admin for booking:', booking.id);
+    }
+
     res.status(201).json({
       success: true,
       message: 'Đặt sân thành công! Chúng tôi sẽ liên hệ xác nhận.',

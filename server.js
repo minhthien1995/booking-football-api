@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
+const socketIo = require('socket.io');
 require('dotenv').config();
 
 const { connectDB } = require('./config/database');
@@ -14,16 +16,39 @@ const permissionRoutes = require('./routes/permissionRoutes');
 const roleRoutes = require('./routes/roleRoutes');
 const publicRoutes = require('./routes/publicRoutes'); 
 const reportsRoutes = require('./routes/reportsRoutes');
+const notificationsRoutes = require('./routes/notificationsRoutes');
 
 // Import models to ensure they're loaded
 require('./models');
 
 const app = express();
+const server = http.createServer(app);
+
+// ⭐ SOCKET.IO SETUP - THÊM ĐOẠN NÀY
+const io = socketIo(server, {
+  cors: {
+    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
+  }
+});
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Make io accessible to routes
+app.set('socketio', io);
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('🔌 New client connected:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('🔌 Client disconnected:', socket.id);
+  });
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -35,14 +60,15 @@ app.use('/api/permissions', permissionRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/reports', reportsRoutes);
-
+app.use('/api/notifications', notificationsRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Server is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    socketIO: io ? 'enabled' : 'disabled'
   });
 });
 
@@ -72,9 +98,10 @@ const startServer = async () => {
     await connectDB();
 
     // Start listening
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📡 Environment: ${process.env.NODE_ENV}`);
+      console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🔌 Socket.IO enabled on port ${PORT}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
     });
   } catch (error) {
@@ -85,4 +112,4 @@ const startServer = async () => {
 
 startServer();
 
-module.exports = app;
+module.exports = { app, server, io };

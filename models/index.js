@@ -7,6 +7,7 @@ const Permission = require('./Permission');
 const UserPermission = require('./UserPermission');
 const UserRole = require('./UserRole');
 const RolePermission = require('./RolePermission');
+const Notification = require('./Notification');
 
 
 // Define associations
@@ -109,6 +110,20 @@ UserRole.hasMany(User, {
 UserRole.belongsTo(User, {
   foreignKey: 'createdBy',
   as: 'creator'
+});
+
+// ⭐ THÊM NOTIFICATION ASSOCIATIONS
+// User has many Notifications
+User.hasMany(Notification, {
+  foreignKey: 'userId',
+  as: 'notifications',
+  onDelete: 'CASCADE'
+});
+
+// Notification belongs to User
+Notification.belongsTo(User, {
+  foreignKey: 'userId',
+  as: 'user'
 });
 
 module.exports = {

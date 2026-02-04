@@ -1,5 +1,6 @@
 const { Field, Booking, User } = require('../models');
 const { Op } = require('sequelize');
+const NotificationService = require('../services/notificationService');
 
 // @desc    Get all active fields for public
 // @route   GET /api/public/fields
@@ -355,6 +356,51 @@ exports.createPublicBooking = async (req, res) => {
         }
       ]
     });
+
+    // ⭐ CREATE NOTIFICATION IN DATABASE
+    try {
+      await NotificationService.createForAdmins({
+        type: 'new_booking',
+        title: `Booking mới từ ${bookingWithDetails.user.fullName}`,
+        message: `${bookingWithDetails.user.fullName} đã đặt ${bookingWithDetails.field.name} vào ${bookingDate} từ ${startTime} đến ${endTime}`,
+        notificationData: {
+          bookingId: booking.id,
+          customerId: userId,
+          customerName: bookingWithDetails.user.fullName,
+          customerPhone: bookingWithDetails.user.phone,
+          fieldId: fieldId,
+          fieldName: bookingWithDetails.field.name,
+          bookingDate: bookingDate,
+          startTime: startTime,
+          endTime: endTime,
+          totalPrice: bookingTotalPrice
+        },
+        priority: 'high'
+      });
+      console.log('✅ Notification saved to database');
+    } catch (notifError) {
+      console.error('⚠️ Failed to create notification:', notifError.message);
+      // Don't fail the booking if notification fails
+    }
+
+
+    // ⭐ EMIT SOCKET EVENT TO ADMIN
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('new-booking', {
+        bookingId: booking.id,
+        customerName: bookingWithDetails.user.fullName,
+        customerPhone: bookingWithDetails.user.phone,
+        fieldName: bookingWithDetails.field.name,
+        bookingDate: bookingDate,
+        startTime: startTime,
+        endTime: endTime,
+        totalPrice: bookingTotalPrice,
+        createdAt: new Date().toISOString(),
+        message: `Booking mới từ ${bookingWithDetails.user.fullName}`
+      });
+      console.log('🔔 Notification sent to admin for booking:', booking.id);
+    }
 
     res.status(201).json({
       success: true,
