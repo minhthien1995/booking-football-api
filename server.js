@@ -27,7 +27,7 @@ const server = http.createServer(app);
 // ⭐ SOCKET.IO SETUP - THÊM ĐOẠN NÀY
 const io = socketIo(server, {
   cors: {
-    origin: ['http://localhost:3000', 'http://localhost:3001',"https://minhtien1995.github.io"],
+    origin: ['http://localhost:3000', 'http://localhost:3001',"https://minhthien1995.github.io/booking-football-cms-bulid"],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
   }
