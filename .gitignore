@@ -5,7 +5,7 @@ yarn.lock
 
 # Environment variables
 .env
-
+nul
 # Logs
 logs
 *.log
