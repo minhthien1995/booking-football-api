@@ -31,6 +31,14 @@ exports.protect = async (req, res, next) => {
       });
     }
 
+    // Admin chưa được phân vai trò không được truy cập
+    if (user.role === 'admin' && !user.customRoleId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Tài khoản admin chưa được phân vai trò. Vui lòng liên hệ superadmin.'
+      });
+    }
+
     // Attach user to request
     req.user = user;
     next();

@@ -86,6 +86,14 @@ exports.login = async (req, res) => {
       });
     }
 
+    // Admin chưa được phân vai trò không được đăng nhập
+    if (user.role === 'admin' && !user.customRoleId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Tài khoản admin chưa được phân vai trò. Vui lòng liên hệ superadmin.'
+      });
+    }
+
     // Generate token
     const token = generateToken(user.id);
 
