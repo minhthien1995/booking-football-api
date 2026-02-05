@@ -1,73 +1,55 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-const Notification = sequelize.define('Notification', {
+const Field = sequelize.define('Field', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
   },
-  userId: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    field: 'user_id',
-    references: {
-      model: 'users',
-      key: 'id'
-    }
+  name: {
+    type: DataTypes.STRING(100),
+    allowNull: false
   },
-  type: {
-    type: DataTypes.ENUM('new_booking', 'booking_updated', 'booking_cancelled', 'payment_received', 'system'),
-    allowNull: false,
-    defaultValue: 'new_booking'
+  fieldType: {
+    type: DataTypes.ENUM('5vs5', '7vs7', '11vs11'),
+    allowNull: false
   },
-  title: {
+  location: {
     type: DataTypes.STRING(255),
     allowNull: false
   },
-  message: {
-    type: DataTypes.TEXT,
+  pricePerHour: {
+    type: DataTypes.DECIMAL(10, 2),
     allowNull: false
   },
-  data: {
-    type: DataTypes.JSON,
-    allowNull: true,
-    get() {
-      const rawValue = this.getDataValue('data');
-      return rawValue ? (typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue) : null;
-    }
+  description: {
+    type: DataTypes.TEXT,
+    allowNull: true
   },
-  isRead: {
+  image: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  isActive: {
     type: DataTypes.BOOLEAN,
     allowNull: false,
-    defaultValue: false,
-    field: 'is_read'
+    defaultValue: true
   },
-  readAt: {
-    type: DataTypes.DATE,
-    allowNull: true,
-    field: 'read_at'
-  },
-  priority: {
-    type: DataTypes.ENUM('low', 'medium', 'high', 'urgent'),
+  openTime: {
+    type: DataTypes.TIME,
     allowNull: false,
-    defaultValue: 'medium'
+    defaultValue: '06:00:00'
   },
-  isDeleted: {
-    type: DataTypes.BOOLEAN,
+  closeTime: {
+    type: DataTypes.TIME,
     allowNull: false,
-    defaultValue: false,
-    field: 'is_deleted'
-  },
-  deletedAt: {
-    type: DataTypes.DATE,
-    allowNull: true,
-    field: 'deleted_at'
+    defaultValue: '23:00:00'
   }
 }, {
-  tableName: 'notifications',
+  tableName: 'fields',
   timestamps: true,
-  underscored: true
+  underscored: false
 });
 
-module.exports = Notification;
+module.exports = Field;

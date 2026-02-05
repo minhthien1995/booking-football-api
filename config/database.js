@@ -25,11 +25,9 @@ const connectDB = async () => {
     await sequelize.authenticate();
     console.log('✅ MySQL Database connected successfully');
     
-    // Sync all models
-    if (process.env.NODE_ENV === 'development') {
-      await sequelize.sync({ alter: false }); // Set to true to auto-update schema
-      console.log('✅ All models synchronized');
-    }
+    // Sync all models (alter: true = auto add/update columns to match model)
+    await sequelize.sync({ alter: true });
+    console.log('✅ All models synchronized');
   } catch (error) {
     console.error('❌ Unable to connect to database:', error.message);
     process.exit(1);

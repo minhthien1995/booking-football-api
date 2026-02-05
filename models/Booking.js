@@ -69,6 +69,12 @@ const Booking = sequelize.define('Booking', {
   notes: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  bookingCode: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    unique: true,
+    field: 'booking_code'
   }
 }, {
   tableName: 'bookings',
@@ -81,6 +87,19 @@ const Booking = sequelize.define('Booking', {
       name: 'unique_booking_slot'
     }
   ]
+});
+
+Booking.beforeValidate((booking) => {
+  const now = new Date();
+  const date = now.getFullYear().toString() +
+    (now.getMonth() + 1).toString().padStart(2, '0') +
+    now.getDate().toString().padStart(2, '0');
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let random = '';
+  for (let i = 0; i < 4; i++) {
+    random += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  booking.bookingCode = `BK-${date}-${random}`;
 });
 
 module.exports = Booking;

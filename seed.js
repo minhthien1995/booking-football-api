@@ -147,8 +147,8 @@ const seedData = async () => {
     ]);
     console.log(`✅ ${fields.length} sample fields created`);
 
-    // Create sample bookings
-    const bookings = await Booking.bulkCreate([
+    // Create sample bookings (dùng create() để beforeCreate hook generate booking_code)
+    const bookingDataList = [
       {
         userId: customers[0].id,
         fieldId: fields[0].id,
@@ -212,7 +212,12 @@ const seedData = async () => {
         paymentStatus: 'refunded',
         notes: 'Hủy vì thời tiết xấu'
       }
-    ]);
+    ];
+
+    const bookings = [];
+    for (const data of bookingDataList) {
+      bookings.push(await Booking.create(data));
+    }
     console.log(`✅ ${bookings.length} sample bookings created`);
 
     console.log('\n🎉 Database seeding completed successfully!\n');

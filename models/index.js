@@ -130,10 +130,11 @@ module.exports = {
   User,
   Field,
   Booking,
+  Notification,
   Permission,
   UserPermission,
   UserRole,
   RolePermission,
-  sequelize,     
-  Sequelize       
+  sequelize,
+  Sequelize
 };
