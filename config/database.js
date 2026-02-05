@@ -16,7 +16,14 @@ const sequelize = new Sequelize(
       acquire: 30000,
       idle: 10000
     },
-    timezone: '+07:00' // Vietnam timezone
+    timezone: '+07:00', // Vietnam timezone
+    
+    // ⭐ QUAN TRỌNG: Tắt auto-sync
+    define: {
+      timestamps: true,
+      underscored: true,
+      freezeTableName: true
+    }
   }
 );
 
@@ -25,9 +32,10 @@ const connectDB = async () => {
     await sequelize.authenticate();
     console.log('✅ MySQL Database connected successfully');
     
-    // Sync all models (force: false = keep data, alter: false = chỉ create tables mới)
-    await sequelize.sync({ force: false, alter: false });
-    console.log('✅ All models synchronized');
+    // ⭐ COMMENT HOẶC XÓA dòng này - ĐỂ MANUAL CONTROL DATABASE SCHEMA
+    // await sequelize.sync({ force: false, alter: false });
+    // console.log('✅ All models synchronized');
+    
   } catch (error) {
     console.error('❌ Unable to connect to database:', error.message);
     process.exit(1);
