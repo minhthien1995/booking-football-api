@@ -59,6 +59,6 @@ exports.authorize = (...roles) => {
         message: `Người dùng với vai trò '${req.user.role}' không có quyền truy cập`
       });
     }
-    next();
+    next(); 
   };
 };
