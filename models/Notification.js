@@ -63,7 +63,7 @@ const Notification = sequelize.define('Notification', {
   }, {
     tableName: 'notifications',
     timestamps: true,
-    underscored: true
+    underscored: false
   });
 
   Notification.associate = (models) => {
