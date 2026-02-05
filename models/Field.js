@@ -49,7 +49,7 @@ const Field = sequelize.define('Field', {
 }, {
   tableName: 'fields',
   timestamps: true,
-  underscored: false
+  underscored: true
 });
 
 module.exports = Field;
