@@ -379,7 +379,7 @@ exports.getTimeSlotAnalysis = async (req, res) => {
         },
         status: { [Op.notIn]: ['cancelled'] }
       },
-      attributes: ['startTime', 'total_price']
+      attributes: ['startTime', 'totalPrice']
     });
 
     // Tạo object chứa data cho mỗi giờ (6:00 - 22:00)
@@ -393,7 +393,7 @@ exports.getTimeSlotAnalysis = async (req, res) => {
       const hour = parseInt(booking.startTime.split(':')[0]);
       if (hourlyData[hour]) {
         hourlyData[hour].bookings++;
-        hourlyData[hour].revenue += parseFloat(booking.total_price);
+        hourlyData[hour].revenue += parseFloat(booking.totalPrice);
       }
     });
 
